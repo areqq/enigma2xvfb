@@ -13,3 +13,7 @@ docker run --rm -p 5900:5900  --name enigma2_box enigmapc  x11vnc -forever  -pas
 ```
 docker exec -it enigma2_box bash
 ```
+
+Links:
+https://github.com/technic/e2xvfb
+
