@@ -38,6 +38,10 @@ Then open **https://HOST-IP:6901** in a browser
 - The host directory `container/plugins/` is mounted into the container; every
   subdirectory (e.g. `plugins/HelloWorld/`) is symlinked at startup into
   `/usr/lib/enigma2/python/Plugins/Extensions/<Name>`.
+- The host directory `container/hdd/` is mounted as `/media/hdd` — drop media
+  files into `container/hdd/movie/` on the host and they are instantly visible
+  to enigma; enigma's crash logs (`enigma2_crash_*.log`) land there too and
+  survive container recreation.
 - Edit the code on the host with any editor, then:
 
 ```bash

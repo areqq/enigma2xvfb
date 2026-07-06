@@ -2,7 +2,7 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.5
+# rev: 2026-07-06.6
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
@@ -12,6 +12,13 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 
 # on a real STB /dev/input is populated by udev; here it just has to exist
 mkdir -p /dev/input
+
+# /media/hdd is bind-mounted from the host (container/hdd/) so media and
+# enigma crash logs survive container recreation. The host dir belongs to
+# the host user (container root); 0777 lets both sides write — enigma (e2)
+# drops .cuts/crash logs, the host user manages media files freely.
+mkdir -p /media/hdd/movie
+chmod 0777 /media/hdd /media/hdd/movie 2>/dev/null || true
 
 # 1) Development plugins: /plugins/<Name> -> Plugins/Extensions/<Name>
 EXT=/usr/lib/enigma2/python/Plugins/Extensions

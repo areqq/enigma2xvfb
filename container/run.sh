@@ -8,6 +8,7 @@ exec podman run -d --name enigma2-dev \
     --memory=4g --cpus=4 --pids-limit=1024 \
     -v "$PWD/files/cmdline:/proc/cmdline:ro" \
     -v "$PWD/plugins:/plugins:Z" \
+    -v "$PWD/hdd:/media/hdd:Z" \
     -e VNC_USER="${VNC_USER:-dev}" \
     -e VNC_PW="${VNC_PW:-enigma}" \
     -e GEOMETRY="${GEOMETRY:-1920x1080}" \
