@@ -1,0 +1,99 @@
+# Enigma2 (OpenPLi) development environment in a container
+# Build: SDL backend (no DVB hardware), access: KasmVNC in the browser (port 6901)
+
+# ---------- stage 1: build ----------
+FROM debian:bookworm-slim AS builder
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential autoconf automake libtool libtool-bin pkg-config gettext \
+    autoconf-archive git ca-certificates \
+    python3 python3-dev swig \
+    libfreetype-dev libfribidi-dev libglib2.0-dev libpng-dev libxml2-dev \
+    libsigc++-3.0-dev libssl-dev libjpeg62-turbo-dev libgif-dev \
+    libavahi-client-dev libudfread-dev libsdl1.2-dev zlib1g-dev linux-libc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# libdvbsi++ (OE-Alliance mirror)
+RUN git clone --depth 1 https://github.com/oe-alliance/libdvbsi.git /src/libdvbsi && \
+    cd /src/libdvbsi && autoreconf -fi && ./configure --prefix=/usr && \
+    make -j"$(nproc)" && make install && make install DESTDIR=/dest
+
+# tuxbox-tuxtxt: libtuxtxt (tuxbox-tuxtxt.pc) + libtuxtxt32bpp + the TuxTxt plugin
+RUN git clone --depth 1 https://github.com/OpenPLi/tuxtxt.git /src/tuxtxt && \
+    cd /src/tuxtxt/libtuxtxt && autoreconf -fi && \
+    ./configure --prefix=/usr --with-boxtype=generic DVB_API_VERSION=5 && \
+    make -j"$(nproc)" && make install && make install DESTDIR=/dest && \
+    cd /src/tuxtxt/tuxtxt && autoreconf -fi && \
+    ./configure --prefix=/usr --with-boxtype=generic DVB_API_VERSION=5 && \
+    make -j"$(nproc)" && make install && make install DESTDIR=/dest
+
+# E2-DarkOS FullHD skin (OpenPLi's default skin for FullHD boxes)
+RUN git clone --depth 1 https://github.com/DimitarCC/E2-DarkOS-skin.git /src/skin && \
+    mkdir -p /dest && cp -r /src/skin/usr /dest/
+
+# enigma2 (sources from the host)
+COPY enigma2/ /src/enigma2/
+RUN cd /src/enigma2 && \
+    sed -i 's/-Werror//' configure.ac && \
+    # the m4 macro shipped in the repo is patched for OE cross-compilation and
+    # mangles paths on a native build — replace with upstream from autoconf-archive
+    cp /usr/share/aclocal/ax_python_devel.m4 m4/ax_python_devel.m4 && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --with-boxtype=none --with-libsdl=yes \
+        CPPFLAGS="-DSYS_DVBC2=19" && \
+    make -j"$(nproc)" && \
+    make install DESTDIR=/dest
+
+# ---------- stage 2: runtime ----------
+FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 libpython3.11 python3-twisted python3-requests python3-pil python3-netifaces \
+    xdotool x11-apps imagemagick \
+    libfreetype6 libfribidi0 libglib2.0-0 libpng16-16 libxml2 libsigc++-3.0-0 \
+    libssl3 libjpeg62-turbo libgif7 libavahi-client3 libudfread0 \
+    libsdl1.2debian zlib1g \
+    iproute2 procps psmisc nano less curl ca-certificates ssl-cert tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# KasmVNC (browser access, https://host:6901)
+ADD https://github.com/kasmtech/KasmVNC/releases/download/v1.3.4/kasmvncserver_bookworm_1.3.4_amd64.deb /tmp/kasmvncserver.deb
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends /tmp/kasmvncserver.deb && \
+    rm -rf /var/lib/apt/lists/* /tmp/kasmvncserver.deb
+
+COPY --from=builder /dest/ /
+
+# Minimal /usr/lib/enigma.info (BoxInfo) with a valid checksum.
+# Values MUST be single-quoted: BoxInfo runs them through literal_eval, so an
+# unquoted 20260703 becomes an int and About's date slicing crashes enigma.
+# Keys imagetype/displaydistro/distro/oe/kernel are required by the About
+# screen (it calls .title() / string concat on them — None crashes enigma).
+RUN python3 -c '\
+import hashlib; \
+body = "".join(f"{k}=\x27{v}\x27\n" for k, v in [ \
+    ("machine", "pc"), ("model", "pc"), ("brand", "PC"), ("platform", "pc"), \
+    ("displaybrand", "PC"), ("displaymodel", "enigma2 SDL"), \
+    ("soc", "none"), ("socfamily", "none"), ("architecture", "x86_64"), \
+    ("mtdkernel", ""), ("mtdrootfs", ""), ("displaytype", ""), \
+    ("imagedir", ""), ("imagefs", ""), ("kernelfile", ""), \
+    ("compiledate", "20260703"), ("imageversion", "dev"), \
+    ("distro", "openpli"), ("displaydistro", "OpenPLi"), \
+    ("imagetype", "developer"), ("oe", "PLi-OE"), ("kernel", "container"), \
+]); \
+open("/usr/lib/enigma.info", "w").write(body + "checksum=" + hashlib.md5(body.encode()).hexdigest() + "\n")'
+
+# user and enigma working directories
+RUN useradd -m -u 1000 -s /bin/bash e2 && adduser e2 ssl-cert && \
+    mkdir -p /etc/enigma2 /etc/tuxbox /home/root/logs /media/hdd/movie /plugins && \
+    chown -R e2:e2 /etc/enigma2 /etc/tuxbox /home/root /media/hdd
+
+COPY --chown=e2:e2 enigma2/lamedb /etc/enigma2/lamedb
+COPY --chown=e2:e2 container/files/settings /etc/enigma2/settings
+COPY --chown=e2:e2 container/files/xstartup /home/e2/.vnc/xstartup
+COPY container/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /home/e2/.vnc/xstartup
+
+EXPOSE 6901
+ENTRYPOINT ["/entrypoint.sh"]

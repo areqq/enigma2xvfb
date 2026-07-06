@@ -1,0 +1,4 @@
+#!/bin/sh
+# X session for KasmVNC — enigma2 is started by the entrypoint, this only keeps the session alive
+xsetroot -solid "#101010" 2>/dev/null
+exec tail -f /dev/null

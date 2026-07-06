@@ -1,0 +1,5 @@
+config.misc.firstrun=False
+config.misc.languageselected=False
+config.misc.videowizardenabled=False
+config.osd.language=en_GB
+config.usage.setup_level=expert
