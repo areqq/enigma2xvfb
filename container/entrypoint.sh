@@ -2,7 +2,7 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.4
+# rev: 2026-07-06.5
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
@@ -80,9 +80,14 @@ trap stop TERM INT
 
 # 4) enigma2 loop — logs go to the container's stdout (podman logs -f)
 while true; do
+    # GST_PLUGIN_FEATURE_RANK: force ximagesink for playbin (servicemp3).
+    # autovideosink probing dfbvideosink starts DirectFB's Fusion thread,
+    # which segfaults inside the container; GL/wayland sinks are dead ends
+    # on Xvnc too. Audio: no audio path in standalone KasmVNC anyway.
     runuser -u e2 -- env HOME=/home/e2 DISPLAY=:1 \
         XAUTHORITY=/home/e2/.Xauthority \
         LANG=C.UTF-8 PYTHONUTF8=1 \
+        GST_PLUGIN_FEATURE_RANK="ximagesink:MAX,dfbvideosink:NONE,glimagesink:NONE,gtksink:NONE,gtkwaylandsink:NONE,waylandsink:NONE,kmssink:NONE,fbdevsink:NONE" \
         ENIGMA_DEBUG_LVL="${ENIGMA_DEBUG_LVL:-4}" \
         /usr/bin/enigma2
     code=$?

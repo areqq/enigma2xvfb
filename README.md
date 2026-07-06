@@ -63,21 +63,49 @@ Then open **https://HOST-IP:6901** in a browser
 ## Keyboard mapping
 
 Keys travel browser → KasmVNC → X → SDL (`lib/driver/rcsdl.cpp`) → remote
-control codes → per-screen actions (`data/keymap.xml`). Usable keys:
+control codes → per-screen actions (`data/keymap.xml`). The bundled
+**MacKeymap** dev plugin (`container/plugins/MacKeymap/keymap.xml`) adds global
+key *translations* for the SDL input device, so a plain Mac(Book) keyboard can
+reach every remote-control button — including the keys used by
+AdvancedFreePlayer. Translations never affect text fields (those switch the
+input to ASCII mode which bypasses translation).
 
-| PC key | RC button |
+Native keys (no translation needed):
+
+| Key | RC button |
 |---|---|
 | arrows | navigation |
 | Enter | OK |
 | Esc | EXIT |
-| Menu key | MENU (missing on Mac keyboards!) |
-| 0–9 | channel number / menu shortcuts |
-| F1 / F2 / F3 / F4 | red / **yellow** / **green** / blue (note the F2/F3 order) |
-| Help | help screen |
-| Home / End | top / bottom of lists |
+| 0–9 | digits (channel number, menu shortcuts, AFP time jumps) |
+| PageUp / PageDown (Fn+↑/↓ on a Mac) | page up/down, AFP subtitle seek |
+| Home (Fn+← on a Mac) | AFP exit player |
 | Power | standby (careful) |
 
-Not reachable from a keyboard: INFO, EPG, teletext, bouquet +/−, volume +/−.
+MacKeymap letter/symbol aliases:
+
+| Key | RC button | Typical use |
+|---|---|---|
+| M | MENU | main/context menu |
+| I | INFO | infobar, AFP infobar toggle |
+| E | EPG | programme guide |
+| H | HELP | help / AFP help screen |
+| O | OK | OK (also in AFP contexts) |
+| A | AUDIO | audio track selection |
+| S | SUBTITLE | subtitle menu |
+| T | TEXT | teletext / AFP subtitle selection |
+| C | TV | AFP subtitle toggle (KEY_TV) |
+| V | VIDEO | movie list |
+| R / G / Y / B | RED / GREEN / YELLOW / BLUE | color buttons |
+| F1 / F2 / F3 / F4 | RED / GREEN / YELLOW / BLUE | color buttons (alt path) |
+| P | PLAY | AFP play (selector) / pause toggle (player) |
+| Space | PLAY/PAUSE | pause toggle |
+| X | STOP | stop / AFP exit |
+| , / . | REWIND / FASTFORWARD | seeking |
+| = / - | CHANNEL +/− | bouquet, AFP subtitle time shift |
+| ] / [ | VOLUME +/− | volume |
+| \ | MUTE | mute |
+
 Keypad arrow keysyms coming out of browsers are remapped back to plain arrows
 server-side (see `keyboard.remap_keys` in the entrypoint) — without it enigma
 sees digits 2/4/6/8 instead of arrows.
@@ -99,6 +127,26 @@ sees digits 2/4/6/8 instead of arrows.
   off brute-force banning — behind podman NAT all clients share one IP and
   auth-less requests (favicon!) count as failed logins, and (b) remaps keypad
   keysyms to arrows.
+- GStreamer 1.x (base/good/bad/libav) + OpenPLi **servicemp3** built against
+  the enigma2 headers — media playback via service type 4097 (the default of
+  e.g. AdvancedFreePlayer). Video rendering on a PC build is experimental:
+  playbin autoplugs an X video sink into a window on the same display.
+  **No audio in the browser** — standalone KasmVNC has no audio channel.
+
+## Third-party plugins
+
+Drop any enigma2 plugin directory into `container/plugins/` and restart the
+container. Example — J00zek's AdvancedFreePlayer (not committed to this repo;
+it is third-party code):
+
+```bash
+curl -sL -o /tmp/afp.ipk 'https://github.com/j00zek/eeRepo/raw/main/enigma2-plugin-extensions--j00zeks-advancedfreeplayer_25.11.26.1210_all.ipk'
+cd /tmp && ar x afp.ipk data.tar.gz && tar xzf data.tar.gz
+cp -r /tmp/usr/lib/enigma2/python/Plugins/Extensions/AdvancedFreePlayer container/plugins/
+podman restart enigma2-dev
+```
+
+Every key AFP listens for is covered by the MacKeymap table above.
 
 ## After changing enigma C++ code
 

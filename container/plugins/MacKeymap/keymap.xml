@@ -1,0 +1,60 @@
+<!-- MacKeymap: makes enigma2 fully drivable from a Mac (MacBook Air) keyboard
+     through KasmVNC. Loaded additively by PluginComponent (every plugin dir's
+     keymap.xml is read at GUI start), so it never replaces stock bindings.
+
+     Part 1: global key TRANSLATIONS for the SDL input device — a keyboard key
+     becomes a remote-control key BEFORE context lookup, so it works on every
+     screen, including plugin-defined contexts (e.g. AdvancedFreePlayer).
+     Translations do not affect text entry: in text fields (kmAscii mode)
+     printable keys bypass the translation path entirely.
+
+     Covers every key used by J00zek's AdvancedFreePlayer plus general
+     essentials (menu/EPG/volume). Digits, arrows, Esc, PageUp/PageDown
+     (Fn+Up/Down on a Mac) and Home (Fn+Left) already work natively. -->
+<keymap>
+	<translate>
+		<device name="SDL">
+			<key from="KEY_M" to="KEY_MENU" />
+			<key from="KEY_I" to="KEY_INFO" />
+			<key from="KEY_E" to="KEY_EPG" />
+			<key from="KEY_H" to="KEY_HELP" />
+			<key from="KEY_O" to="KEY_OK" />
+			<key from="KEY_A" to="KEY_AUDIO" />
+			<key from="KEY_S" to="KEY_SUBTITLE" />
+			<key from="KEY_T" to="KEY_TEXT" />
+			<key from="KEY_C" to="KEY_TV" />
+			<key from="KEY_V" to="KEY_VIDEO" />
+			<key from="KEY_R" to="KEY_RED" />
+			<key from="KEY_G" to="KEY_GREEN" />
+			<key from="KEY_Y" to="KEY_YELLOW" />
+			<key from="KEY_B" to="KEY_BLUE" />
+			<key from="KEY_F1" to="KEY_RED" />
+			<key from="KEY_F2" to="KEY_GREEN" />
+			<key from="KEY_F3" to="KEY_YELLOW" />
+			<key from="KEY_F4" to="KEY_BLUE" />
+			<key from="KEY_P" to="KEY_PLAY" />
+			<key from="KEY_SPACE" to="KEY_PLAYPAUSE" />
+			<key from="KEY_X" to="KEY_STOP" />
+			<key from="KEY_COMMA" to="KEY_REWIND" />
+			<key from="KEY_DOT" to="KEY_FASTFORWARD" />
+			<key from="KEY_EQUAL" to="KEY_CHANNELUP" />
+			<key from="KEY_MINUS" to="KEY_CHANNELDOWN" />
+			<key from="KEY_RIGHTBRACE" to="KEY_VOLUMEUP" />
+			<key from="KEY_LEFTBRACE" to="KEY_VOLUMEDOWN" />
+			<key from="KEY_BACKSLASH" to="KEY_MUTE" />
+		</device>
+	</translate>
+
+	<!-- Part 2: AdvancedFreePlayer binds KEY_OK but not KEY_ENTER in its own
+	     contexts, so the physical Enter key would do nothing there.
+	     Add KEY_ENTER alongside (additive, stock keymap untouched). -->
+	<map context="AdvancedFreePlayer">
+		<key id="KEY_ENTER" mapto="ToggleInfobar" flags="m" />
+	</map>
+	<map context="AdvancedFreePlayerSelector">
+		<key id="KEY_ENTER" mapto="selectFile" flags="m" />
+	</map>
+	<map context="AdvancedFreePlayerInfobar">
+		<key id="KEY_ENTER" mapto="CloseInfobar" flags="m" />
+	</map>
+</keymap>

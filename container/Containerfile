@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfreetype-dev libfribidi-dev libglib2.0-dev libpng-dev libxml2-dev \
     libsigc++-3.0-dev libssl-dev libjpeg62-turbo-dev libgif-dev \
     libavahi-client-dev libudfread-dev libsdl1.2-dev zlib1g-dev linux-libc-dev \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # libdvbsi++ (OE-Alliance mirror)
@@ -43,6 +44,36 @@ RUN cd /src/enigma2 && \
         --with-boxtype=none --with-libsdl=yes \
         CPPFLAGS="-DSYS_DVBC2=19" && \
     make -j"$(nproc)" && \
+    make install DESTDIR=/dest && \
+    # also install into the build root itself — servicemp3 configures
+    # against enigma2 headers + enigma2.pc via pkg-config
+    make install
+
+# gst-plugin-subsink — OE-specific GStreamer element (subtitle sink) that
+# servicemp3 hard-requires ("missing gst-plugin-subsink" without it)
+RUN git clone --depth 1 https://github.com/OpenPLi/gst-plugin-subsink.git /src/subsink && \
+    git clone --depth 1 https://gitlab.freedesktop.org/gstreamer/common.git /src/gst-common && \
+    # AS_VERSION / AS_COMPILER_FLAG macros live in gstreamer's "common" repo
+    cp /src/gst-common/m4/*.m4 /usr/share/aclocal/ && \
+    cd /src/subsink && autoreconf -fi && \
+    # libdir must match Debian's multiarch GStreamer plugin scan path
+    ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu \
+        --with-gstversion=1.0 && \
+    make -j"$(nproc)" && make install DESTDIR=/dest
+
+# servicemp3 (GStreamer media playback, service type 4097) — OpenPLi ships it
+# as a separate repo built against the enigma2 headers, not in the core tree
+RUN git clone --depth 1 -b python3 https://github.com/OpenPLi/servicemp3.git /src/servicemp3 && \
+    cd /src/servicemp3 && \
+    sed -i 's/-Werror//' configure.ac && \
+    # PC build: NATIVE_VIDEO skips playbin's videoconvert (meant for STB
+    # dvbvideosink); with ximagesink it breaks caps negotiation entirely
+    sed -i 's/ | GST_PLAY_FLAG_NATIVE_VIDEO//' servicemp3/servicemp3.cpp && \
+    # same OE-patched m4 macro problem as in the enigma2 build above
+    cp /usr/share/aclocal/ax_python_devel.m4 m4/ax_python_devel.m4 && \
+    autoreconf -fi && \
+    ./configure --prefix=/usr --with-boxtype=none && \
+    make -j"$(nproc)" && \
     make install DESTDIR=/dest
 
 # ---------- stage 2: runtime ----------
@@ -54,6 +85,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfreetype6 libfribidi0 libglib2.0-0 libpng16-16 libxml2 libsigc++-3.0-0 \
     libssl3 libjpeg62-turbo libgif7 libavahi-client3 libudfread0 \
     libsdl1.2debian zlib1g \
+    libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
+    gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+    gstreamer1.0-libav gstreamer1.0-x gstreamer1.0-tools gstreamer1.0-alsa \
     iproute2 procps psmisc nano less curl ca-certificates ssl-cert tzdata \
     && rm -rf /var/lib/apt/lists/*
 
