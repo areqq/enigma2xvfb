@@ -2,7 +2,7 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.6
+# rev: 2026-07-06.7
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
@@ -95,6 +95,7 @@ while true; do
         XAUTHORITY=/home/e2/.Xauthority \
         LANG=C.UTF-8 PYTHONUTF8=1 \
         GST_PLUGIN_FEATURE_RANK="ximagesink:MAX,dfbvideosink:NONE,glimagesink:NONE,gtksink:NONE,gtkwaylandsink:NONE,waylandsink:NONE,kmssink:NONE,fbdevsink:NONE" \
+        GEOMETRY="$GEOMETRY" \
         ENIGMA_DEBUG_LVL="${ENIGMA_DEBUG_LVL:-4}" \
         /usr/bin/enigma2
     code=$?

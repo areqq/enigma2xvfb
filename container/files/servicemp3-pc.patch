@@ -1,0 +1,37 @@
+PC/container adjustments for OpenPLi servicemp3 (see Containerfile):
+scale video to the X screen size via playbin's video-filter, so the
+unmanaged ximagesink window behaves like fullscreen playback (there is
+no window manager and ximagesink cannot scale by itself). Screen size
+comes from the GEOMETRY env var (set by the entrypoint), 1920x1080 default.
+--- a/servicemp3/servicemp3.cpp
++++ b/servicemp3/servicemp3.cpp
+@@ -730,6 +730,29 @@
+ 		}
+ 		g_object_set (G_OBJECT (m_gst_playbin), "flags", flags, NULL);
+ 		g_object_set (G_OBJECT (m_gst_playbin), "uri", uri, NULL);
++		/* PC/container build: scale video to the X screen size so the
++		 * unmanaged ximagesink window covers it like real fullscreen */
++		{
++			const char *geo = getenv("GEOMETRY");
++			int scr_w = 1920, scr_h = 1080;
++			if (geo)
++				sscanf(geo, "%dx%d", &scr_w, &scr_h);
++			/* note: a trailing caps shorthand is a parse error, use an
++			 * explicit capsfilter as the last element of the bin */
++			gchar *vdesc = g_strdup_printf("videoscale add-borders=true ! capsfilter caps=video/x-raw,width=%d,height=%d,pixel-aspect-ratio=1/1", scr_w, scr_h);
++			GError *verr = NULL;
++			GstElement *vfilter = gst_parse_bin_from_description(vdesc, TRUE, &verr);
++			g_free(vdesc);
++			if (vfilter)
++			{
++				/* playsink applies configured filters only with FORCE_FILTERS */
++				g_object_set(G_OBJECT(m_gst_playbin), "video-filter", vfilter, NULL);
++				g_object_set(G_OBJECT(m_gst_playbin), "flags", flags | GST_PLAY_FLAG_FORCE_FILTERS, NULL);
++				eDebug("[eServiceMP3] PC video-filter set (%dx%d)", scr_w, scr_h);
++			}
++			else
++				eDebug("[eServiceMP3] PC video-filter FAILED: %s", verr ? verr->message : "?");
++		}
+ 		GstElement *subsink = gst_element_factory_make("subsink", "subtitle_sink");
+ 		if (!subsink)
+ 			eDebug("[eServiceMP3] sorry, can't play: missing gst-plugin-subsink");

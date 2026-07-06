@@ -63,12 +63,15 @@ RUN git clone --depth 1 https://github.com/OpenPLi/gst-plugin-subsink.git /src/s
 
 # servicemp3 (GStreamer media playback, service type 4097) — OpenPLi ships it
 # as a separate repo built against the enigma2 headers, not in the core tree
+COPY container/files/servicemp3-pc.patch /tmp/servicemp3-pc.patch
 RUN git clone --depth 1 -b python3 https://github.com/OpenPLi/servicemp3.git /src/servicemp3 && \
     cd /src/servicemp3 && \
     sed -i 's/-Werror//' configure.ac && \
     # PC build: NATIVE_VIDEO skips playbin's videoconvert (meant for STB
     # dvbvideosink); with ximagesink it breaks caps negotiation entirely
     sed -i 's/ | GST_PLAY_FLAG_NATIVE_VIDEO//' servicemp3/servicemp3.cpp && \
+    # fullscreen-like scaling via playbin video-filter (see patch header)
+    patch -p1 < /tmp/servicemp3-pc.patch && \
     # same OE-patched m4 macro problem as in the enigma2 build above
     cp /usr/share/aclocal/ax_python_devel.m4 m4/ax_python_devel.m4 && \
     autoreconf -fi && \
