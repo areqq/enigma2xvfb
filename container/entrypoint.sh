@@ -2,7 +2,7 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.9
+# rev: 2026-07-06.10
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
@@ -49,6 +49,19 @@ security:
   brute_force_protection:
     blacklist_threshold: 1000000
     blacklist_timeout: 1
+YAML
+# persistent TLS cert mounted from the host (container/files/ssl/) — without
+# it every image rebuild ships a fresh snakeoil cert and browsers that
+# remembered the old one refuse to connect
+if [ -r /certs/self.pem ] && [ -r /certs/self.key ]; then
+cat >> /home/e2/.vnc/kasmvnc.yaml <<'YAML'
+network:
+  ssl:
+    pem_certificate: /certs/self.pem
+    pem_key: /certs/self.key
+YAML
+fi
+cat >> /home/e2/.vnc/kasmvnc.yaml <<'YAML'
 keyboard:
   ignore_numlock: true
   remap_keys:

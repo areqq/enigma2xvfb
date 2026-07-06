@@ -2,3 +2,4 @@ enigma2/
 container/plugins/AdvancedFreePlayer/
 container/hdd/*
 !container/hdd/.gitkeep
+container/files/ssl/
