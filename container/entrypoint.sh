@@ -2,7 +2,7 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.7
+# rev: 2026-07-06.9
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
@@ -77,6 +77,20 @@ runuser -u e2 -- vncserver :1 \
 
 echo "[entrypoint] KasmVNC is up: https://<host>:6901 (user: $VNC_USER)"
 
+# 3b) Focus keeper: with no window manager the X focus follows the pointer,
+# so the unmanaged fullscreen video window (ximagesink) steals the keyboard
+# as soon as the mouse rests over it — pin input focus to enigma's SDL
+# window (title always ends with "enigma2") so keys keep working.
+# (the SDL window has WM_CLASS enigma2 from the start; its WM_NAME is only
+# set during playback, so matching by --name would miss it when idle)
+runuser -u e2 -- bash -c 'export DISPLAY=:1 XAUTHORITY=/home/e2/.Xauthority
+while sleep 2; do
+    w=$(xdotool search --limit 1 --class "enigma2" 2>/dev/null | head -1)
+    if [ -n "$w" ] && [ "$(xdotool getwindowfocus 2>/dev/null)" != "$w" ]; then
+        xdotool windowfocus "$w" 2>/dev/null
+    fi
+done' &
+
 stop() {
     echo '[entrypoint] shutting down...'
     pkill -TERM enigma2 2>/dev/null
@@ -94,7 +108,7 @@ while true; do
     runuser -u e2 -- env HOME=/home/e2 DISPLAY=:1 \
         XAUTHORITY=/home/e2/.Xauthority \
         LANG=C.UTF-8 PYTHONUTF8=1 \
-        GST_PLUGIN_FEATURE_RANK="ximagesink:MAX,dfbvideosink:NONE,glimagesink:NONE,gtksink:NONE,gtkwaylandsink:NONE,waylandsink:NONE,kmssink:NONE,fbdevsink:NONE" \
+        GST_PLUGIN_FEATURE_RANK="ximagesink:MAX,dfbvideosink:NONE,glimagesink:NONE,gtksink:NONE,gtkwaylandsink:NONE,waylandsink:NONE,kmssink:NONE,fbdevsink:NONE,vah264dec:MAX,vah265dec:MAX,vavp8dec:MAX,vavp9dec:MAX,vaav1dec:MAX,vampeg2dec:MAX" \
         GEOMETRY="$GEOMETRY" \
         ENIGMA_DEBUG_LVL="${ENIGMA_DEBUG_LVL:-4}" \
         /usr/bin/enigma2
