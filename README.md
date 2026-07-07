@@ -42,6 +42,13 @@ Then open **https://HOST-IP:6901** in a browser
   files into `container/hdd/movie/` on the host and they are instantly visible
   to enigma; enigma's crash logs (`enigma2_crash_*.log`) land there too and
   survive container recreation.
+- The host directory `container/etc-enigma2/` is mounted as `/etc/enigma2` —
+  settings, bouquets, timers and plugin config (anything enigma writes there)
+  survive container recreation too. The first time that host directory is
+  empty, the entrypoint seeds it once from the image's baked-in defaults
+  (`lamedb` + a minimal `settings`); after that it's never touched again, so
+  your own changes (made through the GUI or by editing the files on the host)
+  are never overwritten by a rebuild or `./container/run.sh`.
 - Edit the code on the host with any editor, then:
 
 ```bash

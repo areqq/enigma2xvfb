@@ -2,4 +2,6 @@ enigma2/
 container/plugins/AdvancedFreePlayer/
 container/hdd/*
 !container/hdd/.gitkeep
+container/etc-enigma2/*
+!container/etc-enigma2/.gitkeep
 container/files/ssl/

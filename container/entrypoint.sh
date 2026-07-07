@@ -2,7 +2,7 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.10
+# rev: 2026-07-06.11
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
@@ -19,6 +19,18 @@ mkdir -p /dev/input
 # drops .cuts/crash logs, the host user manages media files freely.
 mkdir -p /media/hdd/movie
 chmod 0777 /media/hdd /media/hdd/movie 2>/dev/null || true
+
+# /etc/enigma2 is bind-mounted from the host (container/etc-enigma2/) so
+# settings, bouquets, timers and plugin config survive container recreation.
+# On a fresh (empty) host dir, seed it once from the image's baked-in
+# defaults; once anything is there (including from a previous run), leave it
+# alone completely so the user's own settings are never overwritten.
+if [ ! -e /etc/enigma2/settings ]; then
+    echo "[entrypoint] /etc/enigma2 is empty, seeding defaults"
+    cp -a /etc/enigma2.defaults/. /etc/enigma2/
+fi
+chown -R e2:e2 /etc/enigma2 2>/dev/null || true
+chmod -R ugo+rwX /etc/enigma2 2>/dev/null || true
 
 # 1) Development plugins: /plugins/<Name> -> Plugins/Extensions/<Name>
 EXT=/usr/lib/enigma2/python/Plugins/Extensions

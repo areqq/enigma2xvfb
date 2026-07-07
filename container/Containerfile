@@ -127,8 +127,12 @@ RUN useradd -m -u 1000 -s /bin/bash e2 && adduser e2 ssl-cert && \
     mkdir -p /etc/enigma2 /etc/tuxbox /home/root/logs /media/hdd/movie /plugins && \
     chown -R e2:e2 /etc/enigma2 /etc/tuxbox /home/root /media/hdd
 
-COPY --chown=e2:e2 enigma2/lamedb /etc/enigma2/lamedb
-COPY --chown=e2:e2 container/files/settings /etc/enigma2/settings
+# /etc/enigma2 is normally bind-mounted from the host (container/etc-enigma2/,
+# see run.sh) so settings/bouquets/timers survive container recreation. These
+# defaults are staged separately and only copied in by the entrypoint the
+# first time that host directory is empty - see entrypoint.sh.
+COPY --chown=e2:e2 enigma2/lamedb /etc/enigma2.defaults/lamedb
+COPY --chown=e2:e2 container/files/settings /etc/enigma2.defaults/settings
 COPY --chown=e2:e2 container/files/xstartup /home/e2/.vnc/xstartup
 COPY container/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh /home/e2/.vnc/xstartup
