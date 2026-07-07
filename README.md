@@ -74,6 +74,16 @@ reach every remote-control button — including the keys used by
 AdvancedFreePlayer. Translations never affect text fields (those switch the
 input to ASCII mode which bypasses translation).
 
+**Caveat:** some screens — notably Channel Selection, the very first thing you
+see — turn on quick-search-by-typing for their whole duration. While that's
+active, *every* printable key (all letters, digits, most punctuation) is
+delivered as literal text instead of a remote-control code, so the
+letter/punctuation aliases below are silently ignored there. Only F1–F12,
+arrows, Enter/Esc/Tab/Backspace, Home/End/PageUp/PageDown/Insert/Delete and
+the keypad survive quick-search unaffected — that's why F5–F12 duplicate the
+essential letters. When in doubt about the current screen, reach for an
+F-key.
+
 Native keys (no translation needed):
 
 | Key | RC button |
@@ -102,6 +112,8 @@ MacKeymap letter/symbol aliases:
 | V | VIDEO | movie list |
 | R / G / Y / B | RED / GREEN / YELLOW / BLUE | color buttons |
 | F1 / F2 / F3 / F4 | RED / GREEN / YELLOW / BLUE | color buttons (alt path) |
+| F5 / F6 / F7 / F8 | MENU / INFO / EPG / HELP | quick-search-proof alt path |
+| F9 / F10 / F11 / F12 | AUDIO / SUBTITLE / TEXT / TV | quick-search-proof alt path |
 | P | PLAY | AFP play (selector) / pause toggle (player) |
 | Space | PLAY/PAUSE | pause toggle |
 | X | STOP | stop / AFP exit |
@@ -136,6 +148,15 @@ sees digits 2/4/6/8 instead of arrows.
   e.g. AdvancedFreePlayer). Video rendering on a PC build is experimental:
   playbin autoplugs an X video sink into a window on the same display.
   **No audio in the browser** — standalone KasmVNC has no audio channel.
+  **Known limitation:** that video window is a separate, un-composited X11
+  window that fully covers enigma's own canvas while playing — any OSD
+  enigma draws on top of video (subtitles, whether via the native subtitle
+  track menu or a plugin's own overlay like AFP's, the info bar, pop-up
+  dialogs) is therefore invisible, not just subtitles specifically. A
+  fix needs real compositing (an alpha-aware canvas + a compositing WM, or
+  embedding the video into a window enigma actually manages) — out of
+  scope for a quick patch; a naive "shrink the video window" attempt
+  broke GStreamer's scaling math instead of helping, so it wasn't kept.
 
 ## Third-party plugins
 
@@ -168,3 +189,11 @@ rebuild.
   connect; historically caused by KasmVNC banning the shared NAT IP (fixed by
   the generated kasmvnc.yaml).
 - **Arrows act like digits** — keypad keysym issue, see Keyboard mapping above.
+- **Letters/menu don't seem to do anything** — you're probably on a
+  quick-search-enabled screen (e.g. Channel Selection); use an F-key
+  instead, see the Keyboard mapping caveat above.
+- **Stuck on a frozen video frame, nothing responds** — a dialog (e.g. "Exit
+  movie player?", a delete-file confirmation) is open but hidden behind the
+  video window (see the window-stacking limitation above). The keyboard
+  still reaches it: Enter/Escape blindly often gets you out. If not,
+  `./container/gui-restart.sh` recovers cleanly (enigma restarts in ~10 s).

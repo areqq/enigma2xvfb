@@ -3,9 +3,16 @@ scale video to the X screen size via playbin's video-filter, so the
 unmanaged ximagesink window behaves like fullscreen playback (there is
 no window manager and ximagesink cannot scale by itself). Screen size
 comes from the GEOMETRY env var (set by the entrypoint), 1920x1080 default.
+
+Tried also capping the video shorter than the screen to leave a strip for
+enigma's own OSD (subtitles etc) to show through - reverted, it broke the
+scaling math (videoscale negotiated a much smaller, oddly letterboxed
+frame instead of a clean crop/pad). Making AFP's own subtitle Label
+visible needs a real fix for the video-window-covers-everything problem,
+not a margin hack - see README's window-stacking limitation section.
 --- a/servicemp3/servicemp3.cpp
 +++ b/servicemp3/servicemp3.cpp
-@@ -730,6 +730,29 @@
+@@ -730,6 +730,33 @@
  		}
  		g_object_set (G_OBJECT (m_gst_playbin), "flags", flags, NULL);
  		g_object_set (G_OBJECT (m_gst_playbin), "uri", uri, NULL);
@@ -17,8 +24,12 @@ comes from the GEOMETRY env var (set by the entrypoint), 1920x1080 default.
 +			if (geo)
 +				sscanf(geo, "%dx%d", &scr_w, &scr_h);
 +			/* note: a trailing caps shorthand is a parse error, use an
-+			 * explicit capsfilter as the last element of the bin */
-+			gchar *vdesc = g_strdup_printf("videoscale add-borders=true ! capsfilter caps=video/x-raw,width=%d,height=%d,pixel-aspect-ratio=1/1", scr_w, scr_h);
++			 * explicit capsfilter as the last element of the bin.
++			 * videoconvert before videoscale is required: some sources
++			 * (e.g. 10-bit HEVC -> I420_10LE) use formats videoscale
++			 * cannot handle directly, which otherwise deadlocks the
++			 * pipeline (caps "not accepted", stuck on a green frame). */
++			gchar *vdesc = g_strdup_printf("videoconvert ! videoscale add-borders=true ! videoconvert ! capsfilter caps=video/x-raw,width=%d,height=%d,pixel-aspect-ratio=1/1", scr_w, scr_h);
 +			GError *verr = NULL;
 +			GstElement *vfilter = gst_parse_bin_from_description(vdesc, TRUE, &verr);
 +			g_free(vdesc);

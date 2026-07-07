@@ -5,12 +5,19 @@
      Part 1: global key TRANSLATIONS for the SDL input device — a keyboard key
      becomes a remote-control key BEFORE context lookup, so it works on every
      screen, including plugin-defined contexts (e.g. AdvancedFreePlayer).
-     Translations do not affect text entry: in text fields (kmAscii mode)
-     printable keys bypass the translation path entirely.
 
-     Covers every key used by J00zek's AdvancedFreePlayer plus general
-     essentials (menu/EPG/volume). Digits, arrows, Esc, PageUp/PageDown
-     (Fn+Up/Down on a Mac) and Home (Fn+Left) already work natively. -->
+     IMPORTANT caveat (rcsdl.cpp handleCode): translations only apply to keys
+     that reach eActionMap as native KEY_* codes. Whenever the CURRENT SCREEN
+     switches the global keyboard mode to kmAscii - e.g. ChannelSelection's
+     quick-search-by-name, which is ON by default on the very first screen you
+     see - EVERY printable ASCII key (all letters, digits, and most
+     punctuation) is instead delivered as raw text input and never becomes a
+     KEY_* code, so letter/punctuation translations below are silently
+     bypassed there. Only truly non-ASCII keys (F1-F15, arrows, Home/End/
+     PageUp/PageDown/Insert/Delete, Backspace/Tab/Enter/Escape, keypad) survive
+     kmAscii mode. That's why F5-F12 duplicate the essential letter mappings
+     below: they are the only guaranteed-to-always-work choice. Prefer them
+     when you're not sure whether the current screen has quick-search active. -->
 <keymap>
 	<translate>
 		<device name="SDL">
@@ -32,6 +39,16 @@
 			<key from="KEY_F2" to="KEY_GREEN" />
 			<key from="KEY_F3" to="KEY_YELLOW" />
 			<key from="KEY_F4" to="KEY_BLUE" />
+			<!-- F5-F12: never intercepted by kmAscii/quick-search, unlike the
+			     letter equivalents above - the reliable fallback. -->
+			<key from="KEY_F5" to="KEY_MENU" />
+			<key from="KEY_F6" to="KEY_INFO" />
+			<key from="KEY_F7" to="KEY_EPG" />
+			<key from="KEY_F8" to="KEY_HELP" />
+			<key from="KEY_F9" to="KEY_AUDIO" />
+			<key from="KEY_F10" to="KEY_SUBTITLE" />
+			<key from="KEY_F11" to="KEY_TEXT" />
+			<key from="KEY_F12" to="KEY_TV" />
 			<key from="KEY_P" to="KEY_PLAY" />
 			<key from="KEY_SPACE" to="KEY_PLAYPAUSE" />
 			<key from="KEY_X" to="KEY_STOP" />
