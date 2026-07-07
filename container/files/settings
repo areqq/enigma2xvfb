@@ -3,3 +3,9 @@ config.misc.languageselected=False
 config.misc.videowizardenabled=False
 config.osd.language=en_GB
 config.usage.setup_level=expert
+# no confirmation popup on movie player exit: in this PC/container build the
+# video window is a separate, un-composited X11 window that can cover the
+# popup entirely, making it impossible to see or answer (dead end - only
+# recoverable via gui-restart.sh). Exiting straight to the file list avoids
+# the trap; see README's window-stacking limitation section.
+config.usage.leave_movieplayer_onExit=movielist
