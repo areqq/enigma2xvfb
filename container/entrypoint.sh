@@ -2,12 +2,15 @@
 # Startup: KasmVNC (as user e2) + an enigma2 loop (restart after every exit/crash).
 # NOTE: if you edit this file, bump the revision below — a unique file content
 # avoids buildah's blob reuse (a once-poisoned digest stays in storage forever).
-# rev: 2026-07-06.11
+# rev: 2026-07-06.13
 set -u
 
 VNC_USER="${VNC_USER:-dev}"
 VNC_PW="${VNC_PW:-enigma}"
 GEOMETRY="${GEOMETRY:-1920x1080}"
+# media playback shows video as a small preview box (WxH) parked in a corner,
+# so it doesn't cover enigma's OSD (info bar / subtitles) — see servicemp3-pc.patch
+PC_VIDEO_SIZE="${PC_VIDEO_SIZE:-640x360}"
 export LANG=C.UTF-8 PYTHONUTF8=1
 
 # on a real STB /dev/input is populated by udev; here it just has to exist
@@ -116,6 +119,30 @@ while sleep 2; do
     fi
 done' &
 
+# 3c) Video preview parker: the ximagesink window (sized to PC_VIDEO_SIZE by
+# servicemp3-pc.patch) has no window manager to place it, so it lands at 0,0
+# over the top-left OSD. Move any window matching the preview size to the
+# top-right corner and keep it raised, out of the way of centered subtitles
+# and the bottom info bar.
+runuser -u e2 -- env PC_VIDEO_W="${PC_VIDEO_SIZE%x*}" PC_VIDEO_H="${PC_VIDEO_SIZE#*x}" \
+    bash -c 'export DISPLAY=:1 XAUTHORITY=/home/e2/.Xauthority
+while sleep 1; do
+    for w in $(xdotool search --onlyvisible "" 2>/dev/null); do
+        g=$(xdotool getwindowgeometry --shell "$w" 2>/dev/null) || continue
+        eval "$g"
+        # match the preview box: aspect-correct letterboxing means one axis
+        # hits the box while the other is <= it, so match on either axis
+        { [ "$WIDTH" = "$PC_VIDEO_W" ] || [ "$HEIGHT" = "$PC_VIDEO_H" ]; } || continue
+        [ "$WIDTH" -le "$PC_VIDEO_W" ] && [ "$HEIGHT" -le "$PC_VIDEO_H" ] || continue
+        dg=$(xdotool getdisplaygeometry 2>/dev/null); dw=${dg%% *}
+        tx=$((dw - WIDTH))
+        if [ "$X" != "$tx" ] || [ "$Y" != "0" ]; then
+            xdotool windowmove "$w" "$tx" 0 2>/dev/null
+        fi
+        xdotool windowraise "$w" 2>/dev/null
+    done
+done' &
+
 stop() {
     echo '[entrypoint] shutting down...'
     pkill -TERM enigma2 2>/dev/null
@@ -135,6 +162,7 @@ while true; do
         LANG=C.UTF-8 PYTHONUTF8=1 \
         GST_PLUGIN_FEATURE_RANK="ximagesink:MAX,dfbvideosink:NONE,glimagesink:NONE,gtksink:NONE,gtkwaylandsink:NONE,waylandsink:NONE,kmssink:NONE,fbdevsink:NONE,vah264dec:MAX,vah265dec:MAX,vavp8dec:MAX,vavp9dec:MAX,vaav1dec:MAX,vampeg2dec:MAX" \
         GEOMETRY="$GEOMETRY" \
+        PC_VIDEO_SIZE="$PC_VIDEO_SIZE" \
         ENIGMA_DEBUG_LVL="${ENIGMA_DEBUG_LVL:-4}" \
         /usr/bin/enigma2
     code=$?

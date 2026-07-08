@@ -69,6 +69,7 @@ Then open **https://HOST-IP:6901** in a browser
 | `GEOMETRY` | `1920x1080` | X screen resolution (KasmVNC resizes it to the browser window anyway) |
 | `VNC_USER` | `dev`       | KasmVNC login                  |
 | `VNC_PW`   | `enigma`    | KasmVNC password               |
+| `PC_VIDEO_SIZE` | `640x360` | media playback preview-box size (see below) |
 | `ENIGMA_DEBUG_LVL` | `4` | enigma debug log level         |
 
 ## Keyboard mapping
@@ -152,18 +153,24 @@ sees digits 2/4/6/8 instead of arrows.
   keysyms to arrows.
 - GStreamer 1.x (base/good/bad/libav) + OpenPLi **servicemp3** built against
   the enigma2 headers — media playback via service type 4097 (the default of
-  e.g. AdvancedFreePlayer). Video rendering on a PC build is experimental:
-  playbin autoplugs an X video sink into a window on the same display.
-  **No audio in the browser** — standalone KasmVNC has no audio channel.
-  **Known limitation:** that video window is a separate, un-composited X11
-  window that fully covers enigma's own canvas while playing — any OSD
-  enigma draws on top of video (subtitles, whether via the native subtitle
-  track menu or a plugin's own overlay like AFP's, the info bar, pop-up
-  dialogs) is therefore invisible, not just subtitles specifically. A
-  fix needs real compositing (an alpha-aware canvas + a compositing WM, or
-  embedding the video into a window enigma actually manages) — out of
-  scope for a quick patch; a naive "shrink the video window" attempt
-  broke GStreamer's scaling math instead of helping, so it wasn't kept.
+  e.g. AdvancedFreePlayer). **No audio in the browser** — standalone KasmVNC
+  has no audio channel.
+- **Video plays as a small preview box, not fullscreen** — and that is
+  deliberate. The SDL/PC build has no video plane: on real hardware video
+  lives on a separate plane behind the (alpha) OSD and the chip composites
+  them, but here GStreamer's video sink is just an ordinary, opaque X11
+  window with no compositor to blend it under the OSD. A fullscreen video
+  window would therefore hide enigma's entire OSD — info bar, subtitles
+  (native *and* a plugin's own overlay like AFP's Label), dialogs. So the
+  video is scaled down to a preview box parked in the top-right corner,
+  leaving the rest of the screen showing enigma's OSD. The result: you get
+  a video thumbnail to check playback, **and** AFP's own subtitle rendering,
+  the info bar (OK), subtitle repositioning (up/down) etc. all stay visible
+  and usable. Preview size is the `PC_VIDEO_SIZE` env var (WxH, default
+  `640x360`); the entrypoint parks the window top-right. This is a dev/test
+  container — for a true fullscreen-video-with-overlay player you'd need
+  real compositing (alpha OSD + compositing WM, or embedding video into an
+  enigma-managed surface), which is out of scope here.
 
 ## Third-party plugins
 

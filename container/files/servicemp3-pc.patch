@@ -1,35 +1,35 @@
-PC/container adjustments for OpenPLi servicemp3 (see Containerfile):
-scale video to the X screen size via playbin's video-filter, so the
-unmanaged ximagesink window behaves like fullscreen playback (there is
-no window manager and ximagesink cannot scale by itself). Screen size
-comes from the GEOMETRY env var (set by the entrypoint), 1920x1080 default.
+PC/container adjustment for OpenPLi servicemp3 (see Containerfile).
 
-Tried also capping the video shorter than the screen to leave a strip for
-enigma's own OSD (subtitles etc) to show through - reverted, it broke the
-scaling math (videoscale negotiated a much smaller, oddly letterboxed
-frame instead of a clean crop/pad). Making AFP's own subtitle Label
-visible needs a real fix for the video-window-covers-everything problem,
-not a margin hack - see README's window-stacking limitation section.
+There is no video plane in the SDL/PC build: playbin's ximagesink draws
+into its OWN opaque X11 window. Made fullscreen it covers enigma's entire
+OSD canvas (info bar, subtitles, dialogs, AFP's own subtitle Label) - none
+of which then show. So render the video as a SMALL preview box instead and
+let the rest of the screen keep showing enigma's OSD, so subtitles/info bar
+stay visible beside a video thumbnail. Preview size from the PC_VIDEO_SIZE
+env (WxH, default 640x360); the entrypoint parks the window in a corner.
+
+(An earlier attempt scaled to full screen minus a bottom margin to leave an
+OSD strip - reverted, it broke videoscale's negotiation; a small preview
+window is both simpler and actually leaves the whole OSD usable.)
 --- a/servicemp3/servicemp3.cpp
 +++ b/servicemp3/servicemp3.cpp
-@@ -730,6 +730,33 @@
+@@ -730,6 +730,32 @@
  		}
  		g_object_set (G_OBJECT (m_gst_playbin), "flags", flags, NULL);
  		g_object_set (G_OBJECT (m_gst_playbin), "uri", uri, NULL);
-+		/* PC/container build: scale video to the X screen size so the
-+		 * unmanaged ximagesink window covers it like real fullscreen */
++		/* PC/container build: shrink video to a small preview box so the
++		 * un-composited ximagesink window no longer covers enigma's OSD -
++		 * see the patch file header. */
 +		{
-+			const char *geo = getenv("GEOMETRY");
-+			int scr_w = 1920, scr_h = 1080;
-+			if (geo)
-+				sscanf(geo, "%dx%d", &scr_w, &scr_h);
-+			/* note: a trailing caps shorthand is a parse error, use an
-+			 * explicit capsfilter as the last element of the bin.
-+			 * videoconvert before videoscale is required: some sources
-+			 * (e.g. 10-bit HEVC -> I420_10LE) use formats videoscale
-+			 * cannot handle directly, which otherwise deadlocks the
-+			 * pipeline (caps "not accepted", stuck on a green frame). */
-+			gchar *vdesc = g_strdup_printf("videoconvert ! videoscale add-borders=true ! videoconvert ! capsfilter caps=video/x-raw,width=%d,height=%d,pixel-aspect-ratio=1/1", scr_w, scr_h);
++			const char *pv = getenv("PC_VIDEO_SIZE");
++			int vid_w = 640, vid_h = 360;
++			if (pv)
++				sscanf(pv, "%dx%d", &vid_w, &vid_h);
++			/* videoconvert before videoscale: 10-bit HEVC (P010/I420_10LE)
++			 * is not accepted by videoscale directly and would otherwise
++			 * deadlock the pipeline on a green frame. A trailing caps
++			 * shorthand is a parse error, hence the explicit capsfilter. */
++			gchar *vdesc = g_strdup_printf("videoconvert ! videoscale add-borders=true ! videoconvert ! capsfilter caps=video/x-raw,width=%d,height=%d,pixel-aspect-ratio=1/1", vid_w, vid_h);
 +			GError *verr = NULL;
 +			GstElement *vfilter = gst_parse_bin_from_description(vdesc, TRUE, &verr);
 +			g_free(vdesc);
@@ -38,7 +38,7 @@ not a margin hack - see README's window-stacking limitation section.
 +				/* playsink applies configured filters only with FORCE_FILTERS */
 +				g_object_set(G_OBJECT(m_gst_playbin), "video-filter", vfilter, NULL);
 +				g_object_set(G_OBJECT(m_gst_playbin), "flags", flags | GST_PLAY_FLAG_FORCE_FILTERS, NULL);
-+				eDebug("[eServiceMP3] PC video-filter set (%dx%d)", scr_w, scr_h);
++				eDebug("[eServiceMP3] PC preview video-filter set (%dx%d)", vid_w, vid_h);
 +			}
 +			else
 +				eDebug("[eServiceMP3] PC video-filter FAILED: %s", verr ? verr->message : "?");
